@@ -214,7 +214,7 @@ def run(text, fist="cootie_corrected", seed=1, segmenter="lif", weights="eng", T
     ideal, _, _, _, _ = encoder_ref.render(text, op["wpm"], op["r"], 0.0, 0.0, 0.0, seed)
     out = dict(fist=fist, fist_params=op, seed=seed, segmenter=segmenter,
                nominal_tu_us=round(1.2e6 / op["wpm"]), ideal_ticks_us=ideal,
-               letter_of_mark=lidx, word_of_mark=widx, morse={c: MORSE_TABLE[c] for c in "".join(words)})
+               letter_of_mark=lidx, word_of_mark=widx, morse=dict(MORSE_TABLE))
     if not ticks:
         return dict(out, error="no characters to send")
     wave = encoder_ref.waveform(ticks, chans)

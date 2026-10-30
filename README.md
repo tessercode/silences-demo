@@ -17,6 +17,21 @@ submodule (`vendor/silences`, pinned), and its Python runs unchanged in the brow
 | `tools/build_bundle.py` | packs the package, committed models, char-LM, fists and fitted decoder weights into `public/silences_bundle.tar` |
 | `tests/` | the bridge against the release: chain goldens bit-exact for all three segmenters; traces equal the untraced code |
 | `tools/pyodide_parity.mjs` | re-runs 100 cases in Pyodide (Node) and compares them with CPython |
+| `tools/browser_parity.mjs` | the same 100 cases in headless Chromium, through the bundle the app loads |
+| `src/` | the page: `worker.ts` (Pyodide off the UI thread), `main.ts` (controls), `panels/` (one per module) |
+
+## Run locally
+
+```bash
+git submodule update --init
+npm install
+python3 tools/build_bundle.py           # a Python with numpy; writes public/silences_bundle.tar
+npm run dev                             # http://localhost:5173
+npm run build                           # static site in dist/
+```
+
+Pyodide and numpy load from the jsDelivr CDN (pinned to Pyodide 314.0.7); everything else is served
+by the site.
 
 ## Checks
 
@@ -26,6 +41,7 @@ python3 -m pytest tests                 # needs numpy and scipy
 python3 tools/build_bundle.py
 python3 tools/parity_cases.py           # only when the bridge changes
 npm install && npm run parity
+npx playwright install chromium && node tools/browser_parity.mjs http://localhost:5173/   # with npm run dev
 ```
 
 Decoder weights: by default each segmenter decodes at its own (T, γ) fitted on English words

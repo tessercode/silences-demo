@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playing the Silences</title>
+    <meta name="description" content="Encode text as noisy Morse spike trains and watch three trained gap segmenters and a beam decoder read it back." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Ccircle cx='9' cy='16' r='3' fill='white'/%3E%3Crect x='15' y='13' width='11' height='6' rx='3' fill='white'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <main>
+      <h1>Playing the Silences</h1>
+      <p class="lede">
+        Type a message, choose how the operator keys it, and follow it through the TEMPO decoding chain: an encoder that
+        turns each Morse mark into a spike on a dot or dash line, a front end that timestamps the spikes, a trained network
+        that decides what each silence between marks means, and a beam search with a character language model that turns
+        those decisions into text. Everything runs in your browser, using the same code and fixed-point arithmetic as the
+        five-board RP2040 decoder in the paper.
+      </p>
+
+      <section class="panel" id="p-input">
+        <div class="panel-head"><span class="step">1</span><h2>Message and settings</h2></div>
+        <div class="controls">
+          <div>
+            <label class="field" for="text">Text to send (letters, digits and spaces)</label>
+            <textarea id="text" spellcheck="false">THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG</textarea>
+            <div class="chips" id="samples"></div>
+            <div class="row" style="margin-top: 12px">
+              <label class="field" for="seed" style="margin: 0">Encoder seed</label>
+              <input type="number" id="seed" min="1" max="999999" value="1" />
+              <button id="reroll" title="Same text, new random timing">New seed</button>
+              <button class="primary" id="go">Decode</button>
+            </div>
+            <p class="note">The seed fixes the operator's random timing, so a seed always reproduces the same transmission.</p>
+          </div>
+          <div>
+            <label class="field" for="fist">Operator fist (synthetic sending style)</label>
+            <select id="fist"></select>
+            <div class="params" id="fist-params"></div>
+            <label class="field" style="margin-top: 12px">Gap segmenter</label>
+            <div class="seg-control" id="segmenter" role="group" aria-label="Gap segmenter"></div>
+            <label class="field" for="weights" style="margin-top: 12px">Decoder weights</label>
+            <select id="weights">
+              <option value="eng">Fitted per segmenter, English words</option>
+              <option value="rand">Fitted per segmenter, random letters</option>
+              <option value="deployed">Deployed on the RP2040 (T = 1, γ = 2.5)</option>
+              <option value="custom">Custom</option>
+            </select>
+            <div class="row hidden" id="custom-weights" style="margin-top: 6px">
+              <label>T <input type="number" id="T" min="0.25" max="16" step="0.25" value="1" /></label>
+              <label>γ <input type="number" id="gamma" min="0" max="8" step="0.5" value="2.5" /></label>
+            </div>
+            <p class="note" id="weights-note"></p>
+          </div>
+        </div>
+      </section>
+
+      <div class="loading" id="status"><span class="spinner"></span><span id="status-text">Starting…</span></div>
+      <p class="error hidden" id="error"></p>
+
+      <div id="pipeline" class="hidden">
+        <div class="handoff"><span>text</span></div>
+
+        <section class="panel" id="p-encoder">
+          <div class="panel-head"><span class="step">2</span><h2>Encoder</h2><span class="sub" id="enc-sub"></span></div>
+          <p class="explain">
+            The operator keys each letter as dots and dashes. A mark is a <b>dot</b> if it is held for less than 1.92 time units
+            (T<sub>u</sub>) and a <b>dash</b> otherwise; when a mark ends, a 1 ms spike fires on the dot line or the dash line.
+            The fist adds timing jitter and lets each word drift faster or slower. Grey ticks show where each mark would end with
+            perfect timing; the thin lines show how far the fist moved it. A <span style="color: var(--critical)">red ring</span>
+            marks a channel error: a mark held so far off that it lands on the wrong line.
+          </p>
+          <div class="hscroll" id="v-encoder"></div>
+        </section>
+
+        <div class="handoff"><span class="what" id="h-wave"></span></div>
+
+        <section class="panel" id="p-frontend">
+          <div class="panel-head"><span class="step">3</span><h2>Front end</h2><span class="sub" id="fe-sub"></span></div>
+          <p class="explain">
+            The front end sees only when each spike arrived and on which line. It estimates the time unit T̂<sub>u</sub> from
+            the shortest intervals and measures each <b>interval</b> (a silence plus the mark after it) in those units. Every
+            point is one gap, coloured by what it really is; the lines mark the nominal intervals at the fist's base speed,
+            2, 4, 6, 8 and 10 T<sub>u</sub>, converted into T̂<sub>u</sub> units. 4 is ambiguous: a 1 T<sub>u</sub> silence before a dash (●&nbsp;circle = next mark is a dot, ■&nbsp;square = a dash)
+            looks exactly like a 3 T<sub>u</sub> silence before a dot. Jitter and drift blur everything else. Click a gap to
+            follow it through the rest of the chain.
+          </p>
+          <div class="legend" id="legend-classes"></div>
+          <div class="gapscroll" id="v-frontend"></div>
+        </section>
+
+        <div class="handoff">
+          <div>
+            <span class="what" id="h-06"></span>
+            <details><summary>0x06 frame bytes</summary><pre id="hex-06"></pre></details>
+          </div>
+        </div>
+
+        <section class="panel" id="p-features">
+          <div class="panel-head"><span class="step">4</span><h2>What the segmenter reads</h2><span class="sub" id="feat-sub"></span></div>
+          <p class="explain" id="feat-explain"></p>
+          <div class="gapscroll" id="v-features"></div>
+        </section>
+
+        <div class="handoff" id="hf-feat"><span class="what" id="h-feat"></span></div>
+
+        <section class="panel" id="p-segmenter">
+          <div class="panel-head"><span class="step">5</span><h2>Gap segmenter</h2><span class="sub" id="seg-sub"></span></div>
+          <p class="explain" id="seg-explain"></p>
+          <div class="legend" id="legend-classes-2"></div>
+          <div id="v-posteriors"></div>
+          <h3 class="sub" id="trace-title" style="margin: 14px 0 6px"></h3>
+          <p class="explain" id="trace-explain"></p>
+          <div id="v-trace"></div>
+        </section>
+
+        <div class="handoff">
+          <div>
+            <span class="what" id="h-03"></span>
+            <details><summary>0x03 frame bytes (segmenter → router)</summary><pre id="hex-03"></pre></details>
+            <details><summary>0x05 frame bytes (router → decoder, adds the channel bits)</summary><pre id="hex-05"></pre></details>
+          </div>
+        </div>
+
+        <section class="panel" id="p-decoder">
+          <div class="panel-head"><span class="step">6</span><h2>Beam decoder</h2><span class="sub" id="dec-sub"></span></div>
+          <p class="explain">
+            The decoder walks the gaps left to right, keeping the 20 best readings. At each gap a reading may extend the letter
+            in progress (if the longer pattern can still be a letter) or close it as a letter or a word (if it is a complete
+            letter). Closing a letter adds a character language model's log-probability and an insertion bonus γ; the segmenter's
+            log-posteriors are scaled by T. Each column shows the best readings after one gap (text so far, then the
+            <span style="color: var(--accent)">letter in progress</span>, and the score behind the best); the framed cell is the
+            reading that won. The coloured bar under each gap shows the class the winning reading chose.
+          </p>
+          <div class="row"><label class="sub"><input type="checkbox" id="beam-all" /> show all 20 readings per gap</label></div>
+          <div id="v-decoder"></div>
+        </section>
+
+        <div class="handoff"><span class="what">decoded text</span></div>
+
+        <section class="panel" id="p-output">
+          <div class="panel-head"><span class="step">7</span><h2>Result</h2><span class="sub" id="out-sub"></span></div>
+          <div id="v-output"></div>
+        </section>
+      </div>
+
+      <footer>
+        Code and models: the <i>Playing the Silences</i> release, run unchanged under Pyodide. Numbers here are for one
+        sentence; the paper's results are averaged over thousands of transmissions and ten training seeds.
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
