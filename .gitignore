@@ -1,0 +1,5 @@
+node_modules/
+dist/
+public/silences_bundle.tar
+__pycache__/
+.pytest_cache/

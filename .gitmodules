@@ -1,0 +1,3 @@
+[submodule "vendor/silences"]
+	path = vendor/silences
+	url = https://github.com/tessercode/silences.git
