@@ -1,9 +1,10 @@
 // Open the app in headless Chromium, wait for a decode, and save full-page screenshots.
-// Usage: node tools/screenshot.mjs <url> <out-prefix> [segmenter] [light|dark] [width]
-import { chromium } from "playwright";
+// Usage: node tools/screenshot.mjs <url> <out-prefix> [segmenter] [light|dark] [width] [--browser=...]
+import { browserFromArgs } from "./browsers.mjs";
 
-const [url, out, seg = "lif", scheme = "light", width = "1280"] = process.argv.slice(2);
-const browser = await chromium.launch();
+const { engine, args } = browserFromArgs();
+const [url, out, seg = "lif", scheme = "light", width = "1280"] = args;
+const browser = await engine.launch();
 const page = await browser.newPage({ viewport: { width: +width, height: 900 }, colorScheme: scheme });
 const logs = [];
 page.on("console", (m) => logs.push(`[${m.type()}] ${m.text()}`));

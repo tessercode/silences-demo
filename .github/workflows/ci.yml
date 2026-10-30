@@ -1,0 +1,99 @@
+# Test, build and check the site on every push; publish it to GitHub Pages once this repository is public.
+#
+# While tessercode/silences is private, its submodule is fetched with a read-only deploy key held in the
+# SILENCES_DEPLOY_KEY secret. Once the release is public the secret can go: the plain HTTPS fetch works.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the silences release (vendor/silences)
+        env:
+          KEY: ${{ secrets.SILENCES_DEPLOY_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            install -m 700 -d ~/.ssh
+            printf '%s\n' "$KEY" > ~/.ssh/silences && chmod 600 ~/.ssh/silences
+            # GitHub's published host key (api.github.com/meta), so nothing is trusted on first use.
+            echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" >> ~/.ssh/known_hosts
+            git config --global url."git@github.com:tessercode/silences.git".insteadOf https://github.com/tessercode/silences.git
+            export GIT_SSH_COMMAND="ssh -i ~/.ssh/silences -o IdentitiesOnly=yes"
+          fi
+          git submodule update --init || {
+            echo "::error::Cannot fetch tessercode/silences. While it is private, add a read-only deploy key on it and its private half as this repository's SILENCES_DEPLOY_KEY secret (RELEASING.md)."
+            exit 1
+          }
+          git -C vendor/silences log -1 --format='vendor/silences at %h %s'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python dependencies (the release's pins)
+        run: pip install numpy==2.4.4 scipy==1.17.1 pytest==9.0.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+
+      - name: Bridge tests (bit-exact against the release's chain goldens)
+        run: python -m pytest -q tests
+
+      - name: Build
+        run: |
+          python tools/build_bundle.py
+          node tools/vendor_pyodide.mjs
+          npm run build
+
+      - name: Parity in Pyodide under Node
+        run: node tools/pyodide_parity.mjs
+
+      - name: Browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Parity and layout in Chromium, Firefox and WebKit
+        run: |
+          npx vite preview --host 127.0.0.1 --port 8080 --strictPort &
+          for i in $(seq 60); do curl -sf -o /dev/null http://127.0.0.1:8080/ && break; sleep 1; done
+          for b in chromium firefox webkit; do
+            node tools/browser_parity.mjs http://127.0.0.1:8080/ --browser=$b
+            node tools/clip_check.mjs http://127.0.0.1:8080/ --browser=$b
+          done
+
+      - name: Keep the site for Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - id: pages
+        uses: actions/deploy-pages@v4

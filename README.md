@@ -16,8 +16,14 @@ submodule (`vendor/silences`, pinned), and its Python runs unchanged in the brow
 | `py/demo_api.py` | `run(text, fist, seed, segmenter, weights)`: every intermediate as JSON |
 | `tools/build_bundle.py` | packs the package, committed models, char-LM, fists and fitted decoder weights into `public/silences_bundle.tar` |
 | `tests/` | the bridge against the release: chain goldens bit-exact for all three segmenters; traces equal the untraced code |
+| `src/about.ts` | citations and links for the footer (release day fills the DOIs; see `RELEASING.md`) |
+| `public/THIRD_PARTY_NOTICES.txt` | what the site serves under other licences |
 | `tools/pyodide_parity.mjs` | re-runs 100 cases in Pyodide (Node) and compares them with CPython |
-| `tools/browser_parity.mjs` | the same 100 cases in headless Chromium, through the bundle the app loads |
+| `tools/browser_parity.mjs` | the same 100 cases in a headless browser (`--browser=chromium`, `firefox` or `webkit`), through the bundle the app loads |
+| `tools/clip_check.mjs` | every view at desktop and phone widths: no chart text clipped, no sideways scrolling |
+| `.github/workflows/ci.yml` | all of the above on every push; publishes to GitHub Pages once the repository is public |
+| `docs/copy.md` | every piece of explanatory text on the page, numbered for review |
+| `RELEASING.md` | the steps for going public with the silences release |
 | `src/` | the page: `worker.ts` (Pyodide off the UI thread), `main.ts` (controls), `panels/` (one per module) |
 
 ## Run locally

@@ -23,7 +23,8 @@
         <div class="controls">
           <div>
             <label class="field" for="text">Text to send (letters, digits and spaces)</label>
-            <textarea id="text" spellcheck="false">THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG</textarea>
+            <textarea id="text" spellcheck="false" maxlength="600">THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG</textarea>
+            <div class="counter" id="mark-count" aria-live="polite"></div>
             <div class="chips" id="samples"></div>
             <div class="row" style="margin-top: 12px">
               <label class="field" for="seed" style="margin: 0">Encoder seed</label>
@@ -144,10 +145,7 @@
         </section>
       </div>
 
-      <footer>
-        Code and models: the <i>Playing the Silences</i> release, run unchanged under Pyodide. Numbers here are for one
-        sentence; the paper's results are averaged over thousands of transmissions and ten training seeds.
-      </footer>
+      <footer id="footer"></footer>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

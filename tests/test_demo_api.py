@@ -93,3 +93,32 @@ def test_labels_and_truth():
     # H=.... I=.. E=. M=--: three intra, inter, intra, word, inter, intra
     assert o["labels"] == [0, 0, 0, 1, 0, 2, 1, 0]
     assert o["truth"] == "HI EM" and o["gap_accuracy"] == 1.0
+
+
+def _text_of_marks(n):
+    """Pangram text cut at the last letter that keeps it within n marks."""
+    base, out = "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG ", ""
+    for c in base * 20:
+        if c != " " and d.count_marks(out + c) > n:
+            break
+        out += c
+    return out.strip()
+
+
+def test_count_marks_is_the_encoder():
+    for text in ["HI EM", "cq cq de w1aw k", "Ünïcode, 73!  ok", _text_of_marks(256)]:
+        op = d.OPERATORS["fast_normalr"]
+        ticks = d.encoder_ref.render(text, op["wpm"], op["r"], 0.0, 0.0, 0.0, 1)[0]
+        assert d.count_marks(text) == len(ticks)
+
+
+@pytest.mark.parametrize("fist", sorted(d.OPERATORS))
+def test_the_page_cap_never_overflows(fist):
+    """Text the page accepts (at most N_MARKS_MAX marks) decodes as one transmission on every fist."""
+    text = _text_of_marks(d.frames.N_MARKS_MAX)
+    assert d.count_marks(text) > d.frames.N_MARKS_MAX - 5
+    for seg in d.SEGMENTERS:
+        o = d.run(text, fist, 1, seg)
+        assert "error" not in o and o["n_captures"] == 1 and o["last_mark"] + 1 == d.count_marks(text)
+    over = text + " " + "E" * (d.frames.N_MARKS_MAX + 1 - d.count_marks(text))
+    assert "error" in d.run(over, fist, 1, "lif")

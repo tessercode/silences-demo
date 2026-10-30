@@ -13,7 +13,7 @@ import time
 
 import numpy as np
 
-from silences import MODELS, RECORDS, ROOT, encoder_ref, front_end
+from silences import MODELS, RECORDS, ROOT, encoder_ref, frames, front_end
 from silences.decoder.beam import BEAM_WIDTH, GAMMA, MORSE_INVERSE, MORSE_PREFIXES, decode
 from silences.decoder.charlm import logp_q16
 from silences.fixedpoint import q16
@@ -199,6 +199,17 @@ def fists():
     return [dict(OPERATORS[name], number=n) for n, name in sorted(CONSOLE_FIST.items())]
 
 
+def count_marks(text):
+    """Marks the encoder sends for text: one per dot or dash. The front end's frame holds at most
+    frames.N_MARKS_MAX of them; the page counts the same way before it calls run."""
+    return sum(len(MORSE_TABLE[c]) for c in encoder_ref.clean_text(text) if c != " ")
+
+
+def meta():
+    """What the page needs once, at load: the fists, the fitted decoder weights, and the mark cap."""
+    return dict(fists=fists(), fits=fits(), morse=dict(MORSE_TABLE), n_marks_max=frames.N_MARKS_MAX)
+
+
 def gap_labels(lidx, widx, i0, i1):
     """True class of each gap between marks i0..i1: 0 intra-letter, 1 inter-letter, 2 inter-word."""
     return [0 if lidx[j + 1] == lidx[j] else (2 if widx[j + 1] != widx[j] else 1) for j in range(i0, i1)]
@@ -227,7 +238,7 @@ def run(text, fist="cootie_corrected", seed=1, segmenter="lif", weights="eng", T
     t_chain = time.perf_counter() - t0
     out.update(c, text_clean=encoder_ref.clean_text(text), first_mark=i0, last_mark=i1, truth=truth, labels=labels)
     if c["overflow"]:
-        return dict(out, error="transmission longer than the front end's 256-mark frame")
+        return dict(out, error=f"transmission longer than the front end's {frames.N_MARKS_MAX}-mark frame")
 
     w = decoder_weights(segmenter, weights, T, gamma)
     T_q, gamma_q = _q(w["T"]), _q(w["gamma"])

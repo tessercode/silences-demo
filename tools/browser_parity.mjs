@@ -1,15 +1,17 @@
-// The parity cases (tools/parity_expected.json) run in headless Chromium against the dev or preview
-// server, through the same Pyodide build and bundle the app loads. Usage: node tools/browser_parity.mjs <url>
+// The parity cases (tools/parity_expected.json) run in a headless browser against the dev or preview
+// server, through the same Pyodide build and bundle the app loads.
+// Usage: node tools/browser_parity.mjs <url> [--browser=chromium|firefox|webkit]
 import { readFileSync } from "node:fs";
-import { chromium } from "playwright";
+import { browserFromArgs } from "./browsers.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
-const url = process.argv[2] ?? "http://localhost:5179/";
+const { name, engine, args } = browserFromArgs();
+const url = args[0] ?? "http://localhost:5179/";
 const cases = JSON.parse(readFileSync(root + "tools/parity_expected.json", "utf8"));
 const digestSrc = readFileSync(root + "tools/parity_cases.py", "utf8").split("\ndef cases")[0]
   .replace(/^REPO = .*$/m, "").replace(/^sys\.path.*$/m, "");
 
-const browser = await chromium.launch();
+const browser = await engine.launch();
 const page = await browser.newPage();
 await page.goto(url);
 const got = await page.evaluate(async ({ cases, digestSrc }) => {
@@ -31,6 +33,6 @@ cases.forEach(({ case: c, expect }, i) => {
     console.log("MISMATCH", c, got[i], expect);
   }
 });
-console.log(`${cases.length - bad}/${cases.length} cases identical to CPython in Chromium`);
+console.log(`${cases.length - bad}/${cases.length} cases identical to CPython in ${name}`);
 await browser.close();
 process.exit(bad ? 1 : 0);

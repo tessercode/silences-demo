@@ -193,7 +193,7 @@ export function renderLifTrace(box: HTMLElement, r: Result) {
       .attr("stroke-dasharray", "4 3")
       .attr("opacity", 0.8);
   }
-  s2.append("text").attr("x", 40).attr("y", 10).style("font-weight", "600").text("readout membrane (not spiking)");
+  s2.append("text").attr("x", 40).attr("y", 13).style("font-weight", "600").text("readout membrane (not spiking)");
   s2.append("text").attr("class", "muted").attr("x", 40).attr("y", h + 18).text("dashed: mean over the steps = the class logit");
   s2.append("text").attr("class", "muted").attr("x", 40).attr("y", h + 34).text(`β = ${tr.beta.toFixed(2)}, threshold ${tr.threshold}, subtractive reset, T = ${T}`);
 }

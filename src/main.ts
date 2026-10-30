@@ -1,4 +1,5 @@
 // The page controller: settings -> worker -> panels.
+import { renderFooter } from "./about";
 import { CLASS_NAMES, Result, SEGMENTER_NAMES, el, gapStrip, revealGap, syncGapScroll } from "./common";
 import { renderDecoder } from "./panels/decoder";
 import { renderEncoder } from "./panels/encoder";
@@ -37,6 +38,8 @@ interface Fit {
 interface Meta {
   fists: Fist[];
   fits: Record<string, Record<string, Fit>>;
+  morse: Record<string, string>;
+  n_marks_max: number;
 }
 
 const state = {
@@ -46,6 +49,8 @@ const state = {
 };
 let meta: Meta;
 let last: Result[] = [];
+
+renderFooter($("footer"));
 
 // ---- worker ----
 const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
@@ -122,6 +127,7 @@ function onReady(m: Meta) {
     state.gap = null;
     go();
   };
+  $("text").oninput = () => checkLength();
   $("text").onkeydown = (ev: KeyboardEvent) => {
     if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) {
       ev.preventDefault();
@@ -140,6 +146,26 @@ function onReady(m: Meta) {
     resize = window.setTimeout(() => last.length && render(last), 200);
   });
   go();
+}
+
+/** Marks the encoder will send, counted as demo_api.count_marks does (encoder_ref.clean_text, then one mark per element). */
+function countMarks(text: string): number {
+  let n = 0;
+  for (const c of text.toUpperCase()) n += meta.morse[c]?.length ?? 0;
+  return n;
+}
+
+/** The front end frames at most n_marks_max marks; longer text is stopped here rather than in Python. */
+function checkLength(): boolean {
+  const n = countMarks($<HTMLTextAreaElement>("text").value);
+  const over = n > meta.n_marks_max;
+  const box = $("mark-count");
+  box.textContent = over
+    ? `${n} marks: the front end's frame holds ${meta.n_marks_max}. Shorten the text to decode it.`
+    : `${n} of ${meta.n_marks_max} marks`;
+  box.classList.toggle("over", over);
+  $<HTMLButtonElement>("go").disabled = over;
+  return !over;
 }
 
 function setSegmenter(s: string) {
@@ -176,6 +202,7 @@ function settings() {
 
 let generation = 0;
 async function go() {
+  if (!checkLength()) return;
   const s = settings();
   const gen = ++generation;
   $("status").classList.remove("hidden");

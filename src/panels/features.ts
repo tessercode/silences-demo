@@ -71,7 +71,8 @@ export function renderGap9(box: HTMLElement, r: Result, strip: GapStrip, selecte
   const rows: number[][] = r.features.rows;
   const names: string[] = ["ISI trace 1", "ISI trace 2", "ISI trace 3", "ISI trace 4", "ISI trace 5", "ISI trace 6", "next is dash", "past 3.5 Tu", "past dot/dash Tu"];
   const ch = 12;
-  const H = 9 * ch + 18;
+  const top = 4; // headroom for the first row's label
+  const H = top + 9 * ch + 18;
   const svg = svgIn(box, strip.width, H);
   const color = sequential(0, 1);
   for (let k = 0; k < 9; k++) {
@@ -79,7 +80,7 @@ export function renderGap9(box: HTMLElement, r: Result, strip: GapStrip, selecte
       .append("text")
       .attr("class", "rowlabel")
       .attr("x", strip.left - 6)
-      .attr("y", k * ch + ch - 2)
+      .attr("y", top + k * ch + ch - 2)
       .attr("text-anchor", "end")
       .style("font-size", "10px")
       .text(names[k]);
@@ -89,7 +90,7 @@ export function renderGap9(box: HTMLElement, r: Result, strip: GapStrip, selecte
       .data(d3.range(rows.length))
       .join("rect")
       .attr("x", (i) => strip.x(i))
-      .attr("y", k * ch)
+      .attr("y", top + k * ch)
       .attr("width", strip.gw - (strip.gw > 6 ? 1 : 0))
       .attr("height", ch - 1)
       .attr("fill", (i) => color(rows[i][k]));
@@ -97,7 +98,7 @@ export function renderGap9(box: HTMLElement, r: Result, strip: GapStrip, selecte
   svg
     .append("rect")
     .attr("x", strip.x(selected))
-    .attr("y", -1)
+    .attr("y", top - 1)
     .attr("width", strip.gw)
     .attr("height", 9 * ch + 1)
     .attr("fill", "none")
@@ -109,6 +110,7 @@ export function renderGap9(box: HTMLElement, r: Result, strip: GapStrip, selecte
     .data(d3.range(rows.length))
     .join("rect")
     .attr("x", (i) => strip.x(i))
+    .attr("y", top)
     .attr("width", strip.gw)
     .attr("height", 9 * ch)
     .attr("fill", "transparent")

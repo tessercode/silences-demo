@@ -1,0 +1,17 @@
+# Third-party notices
+
+This page is MIT-licensed (`LICENSE`). It serves the following third-party software and material,
+unmodified, under their own terms.
+
+| Item | Version | Licence | Source |
+|---|---|---|---|
+| Pyodide (CPython compiled to WebAssembly, with its standard library) | 314.0.7 | MPL-2.0; CPython under the PSF License 2.0 | <https://github.com/pyodide/pyodide> |
+| numpy (Pyodide build) | 2.4.6 | BSD-3-Clause, with bundled parts under 0BSD, MIT, Zlib and CC0-1.0; the licence files are inside the wheel | <https://github.com/numpy/numpy> |
+| D3 | 7.9.0 | ISC | <https://github.com/d3/d3> |
+
+The Python package, models and language-model table come from the *Playing the Silences* release
+(<https://github.com/tessercode/silences>, MIT). Its own third-party material, including the NLTK
+corpora behind the English vocabulary and the language model, is listed in that repository's
+`THIRD_PARTY.md`.
+
+Vite and TypeScript are used to build the page and are not served.
