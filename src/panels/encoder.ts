@@ -12,7 +12,7 @@ export function renderEncoder(box: HTMLElement, r: Result) {
   const tEnd = Math.max(wave[wave.length - 1][1], ideal[ideal.length - 1]) + 300_000;
   const left = 92;
   const width = Math.max(box.clientWidth, left + wave.length * 11);
-  const H = 176;
+  const H = 190;
   const x = d3.scaleLinear().domain([t0, tEnd]).range([left, width - 8]);
   const svg = svgIn(box, width, H);
   const Y = { letter: 16, morse: 32, ideal: 66, dot: 108, dash: 144 };
@@ -27,7 +27,7 @@ export function renderEncoder(box: HTMLElement, r: Result) {
     .attr("x", ([, js]) => x(wave[js[0]][0]) - 6)
     .attr("width", ([, js]) => x(wave[js[js.length - 1]][1]) - x(wave[js[0]][0]) + 12)
     .attr("y", 4)
-    .attr("height", H - 18)
+    .attr("height", H - 32)
     .attr("rx", 4)
     .attr("fill", css("--grid"))
     .attr("opacity", ([w]) => ((w as number) % 2 ? 0.35 : 0.7));
@@ -149,16 +149,17 @@ export function renderEncoder(box: HTMLElement, r: Result) {
     })
     .on("mouseleave", hideTip);
 
-  // Time axis.
+  // Time axis, in round seconds from the first mark.
+  const seconds = d3.ticks(0, (tEnd - wave[0][0]) / 1e6, Math.max(2, Math.floor(width / 120)));
   svg
     .append("g")
     .attr("class", "axis")
-    .attr("transform", `translate(0,${H - 14})`)
+    .attr("transform", `translate(0,${H - 26})`) // room below for the tick labels
     .call(
       d3
         .axisBottom(x)
-        .ticks(Math.max(2, Math.floor(width / 120)))
-        .tickFormat((t) => `${((+t - wave[0][0]) / 1e6).toFixed(1)} s`)
+        .tickValues(seconds.map((s) => wave[0][0] + s * 1e6))
+        .tickFormat((t) => `${d3.format("~f")((+t - wave[0][0]) / 1e6)} s`)
         .tickSizeOuter(0),
     );
 

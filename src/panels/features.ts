@@ -10,7 +10,7 @@ export function renderWindow(box: HTMLElement, r: Result, gap: number) {
   const n = 2 * W + 1;
   const cell = Math.max(16, Math.min(30, Math.floor((box.clientWidth - 150) / n)));
   const left = 140;
-  const H = 24 + 2 * cell + 26;
+  const H = 24 + 2 * cell + 40;
   const svg = svgIn(box, left + n * cell + 8, H);
   const color = diverging(3);
   const names = ["log(interval / T̂u)", "channel bit (dash = 1)"];
@@ -64,7 +64,7 @@ export function renderWindow(box: HTMLElement, r: Result, gap: number) {
     .attr("y", 14)
     .attr("text-anchor", "middle")
     .text((c) => (c === W ? `gap ${gap}` : `${c - W > 0 ? "+" : ""}${c - W}`));
-  legendDiverging(svg, left, H - 16, "standardised value", 3);
+  legendDiverging(svg, left, H - 26, "standardised value", 3);
 }
 
 export function renderGap9(box: HTMLElement, r: Result, strip: GapStrip, selected: number, onSelect: (g: number) => void) {

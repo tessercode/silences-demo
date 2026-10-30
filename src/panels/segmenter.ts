@@ -115,7 +115,7 @@ export function renderLifTrace(box: HTMLElement, r: Result) {
   const rh = 1.25;
   const left = 70;
   const sizes: number[] = tr.sizes;
-  const H = 20 + sizes.reduce((a, n) => a + n * rh + 26, 0);
+  const H = 32 + sizes.reduce((a, n) => a + n * rh + 26, 0); // room for the "time step" label
   const svg = svgIn(rasterBox, left + T * cw + 10, H);
   let y0 = 16;
   sizes.forEach((n, l) => {
@@ -259,5 +259,5 @@ export function renderBigruTrace(box: HTMLElement, r: Result, strip: GapStrip, s
     .attr("fill", "none")
     .attr("stroke", css("--ink"))
     .attr("stroke-width", 1.5);
-  legendDiverging(svg, strip.left, H - 18, "hidden state", 1);
+  legendDiverging(svg, strip.left, H - 26, "hidden state", 1);
 }
