@@ -26,12 +26,35 @@ submodule (`vendor/silences`, pinned), and its Python runs unchanged in the brow
 git submodule update --init
 npm install
 python3 tools/build_bundle.py           # a Python with numpy; writes public/silences_bundle.tar
+node tools/vendor_pyodide.mjs           # Pyodide + numpy into public/pyodide/
 npm run dev                             # http://localhost:5173
 npm run build                           # static site in dist/
 ```
 
-Pyodide and numpy load from the jsDelivr CDN (pinned to Pyodide 314.0.7); everything else is served
-by the site.
+## Serve for testing on a local network
+
+```bash
+tools/serve.sh            # http://<this machine>:8080/ ; tools/serve.sh <port> <host> to change
+```
+
+The script builds everything and serves the static site with `vite preview`. The first run also
+creates `.venv` (numpy, to build the model bundle) and installs `node_modules`. The site serves Pyodide
+and numpy itself (`tools/vendor_pyodide.mjs` copies them into `public/pyodide/`, checking the wheel
+against Pyodide's lock file), so testers' browsers need to reach only this machine. It has no access
+control: anyone who can reach the port can use it.
+
+To keep it running across reboots, as a systemd user service:
+
+```bash
+mkdir -p ~/.config/systemd/user && cp deploy/silences-demo.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now silences-demo
+journalctl --user -u silences-demo -f
+```
+
+The unit assumes the checkout is at `~/workspace/silences-demo`; edit `WorkingDirectory` and
+`ExecStart` otherwise. It starts without a login session only if lingering is on
+(`loginctl enable-linger $USER`). After pulling changes, `systemctl --user restart silences-demo`
+rebuilds and serves the new version.
 
 ## Checks
 
@@ -41,7 +64,7 @@ python3 -m pytest tests                 # needs numpy and scipy
 python3 tools/build_bundle.py
 python3 tools/parity_cases.py           # only when the bridge changes
 npm install && npm run parity
-npx playwright install chromium && node tools/browser_parity.mjs http://localhost:5173/   # with npm run dev
+npx playwright install chromium && node tools/browser_parity.mjs http://localhost:8080/   # with tools/serve.sh running
 ```
 
 Decoder weights: by default each segmenter decodes at its own (T, γ) fitted on English words

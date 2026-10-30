@@ -13,7 +13,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.goto(url);
 const got = await page.evaluate(async ({ cases, digestSrc }) => {
-  const base = "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/";
+  const base = new URL("pyodide/", document.baseURI).href;
   const { loadPyodide } = await import(base + "pyodide.mjs");
   const py = await loadPyodide({ indexURL: base });
   await py.loadPackage("numpy");

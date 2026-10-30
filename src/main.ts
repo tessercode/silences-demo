@@ -60,7 +60,11 @@ worker.onmessage = (ev) => {
   else if (m.type === "error") pending.get(m.id)?.({ error: m.message });
   if (m.id !== undefined) pending.delete(m.id);
 };
-worker.postMessage({ type: "init", bundle: new URL("silences_bundle.tar", document.baseURI).href });
+worker.postMessage({
+  type: "init",
+  bundle: new URL("silences_bundle.tar", document.baseURI).href,
+  pyodide: new URL("pyodide/", document.baseURI).href,
+});
 
 function call(args: Record<string, unknown>): Promise<Result> {
   const id = nextId++;

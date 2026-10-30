@@ -1,0 +1,17 @@
+# systemd user service for a local test server. Install:
+#   mkdir -p ~/.config/systemd/user && cp deploy/silences-demo.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now silences-demo
+# Logs: journalctl --user -u silences-demo -f   (runs without a login session if lingering is on:
+#   loginctl enable-linger $USER)
+[Unit]
+Description=Playing the Silences demo (local test server)
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/workspace/silences-demo
+ExecStart=%h/workspace/silences-demo/tools/serve.sh 8080
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

@@ -1,14 +1,14 @@
-// Pyodide runs here, off the UI thread. Messages: {type: "init", bundle} -> {type: "ready", meta};
+// Pyodide runs here, off the UI thread. Messages: {type: "init", bundle, pyodide} -> {type: "ready", meta};
 // {type: "run", id, args} -> {type: "result", id, json} or {type: "error", id, message}.
-const PYODIDE = "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/";
+// The site serves Pyodide itself (public/pyodide/, from tools/vendor_pyodide.mjs).
 
 let run: ((kw: unknown) => string) | null = null;
 
-async function init(bundleUrl: string) {
+async function init(bundleUrl: string, pyodideUrl: string) {
   const status = (text: string) => postMessage({ type: "status", text });
   status("Loading Python (Pyodide)…");
-  const { loadPyodide } = await import(/* @vite-ignore */ PYODIDE + "pyodide.mjs");
-  const py = await loadPyodide({ indexURL: PYODIDE });
+  const { loadPyodide } = await import(/* @vite-ignore */ pyodideUrl + "pyodide.mjs");
+  const py = await loadPyodide({ indexURL: pyodideUrl });
   status("Loading numpy…");
   await py.loadPackage("numpy");
   status("Loading the trained segmenters…");
@@ -24,7 +24,7 @@ onmessage = async (ev: MessageEvent) => {
   const m = ev.data;
   if (m.type === "init") {
     try {
-      await init(m.bundle);
+      await init(m.bundle, m.pyodide);
     } catch (e) {
       postMessage({ type: "fatal", message: String(e) });
     }
