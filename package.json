@@ -1,7 +1,7 @@
 {
   "name": "silences-demo",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "bundle": "python3 tools/build_bundle.py",

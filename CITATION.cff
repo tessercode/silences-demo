@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: "If you use this demo, please cite the paper below and the silences release it runs."
+title: "Playing the Silences: interactive demo"
+type: software
+license: MIT
+repository-code: "https://github.com/tessercode/silences-demo"
+url: "https://tessercode.com/silences-demo/"
+authors:
+  - family-names: Hindman
+    given-names: Lucas S.
+    orcid: "https://orcid.org/0009-0004-8949-9342"
+    affiliation: "Department of Computer Science, Boise State University"
+preferred-citation:
+  type: article
+  title: "Playing the Silences: A Feedforward Spiking Gap Detector for Word-Level Decoding of TEMPO Morse"
+  authors:
+    - family-names: Hindman
+      given-names: Lucas S.
+      orcid: "https://orcid.org/0009-0004-8949-9342"
+      affiliation: "Department of Computer Science, Boise State University"
+    - family-names: Cantley
+      given-names: Kurtis D.
+      orcid: "https://orcid.org/0000-0003-0254-4346"
+      affiliation: "Department of Electrical and Computer Engineering, Boise State University"
+  year: 2026
+references:
+  - type: software
+    title: "Playing the Silences: code, models and records"
+    authors:
+      - family-names: Hindman
+        given-names: Lucas S.
+    version: "v1.0.1"
+    doi: "10.5281/zenodo.23990295"
+    repository-code: "https://github.com/tessercode/silences"
