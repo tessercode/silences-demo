@@ -49,7 +49,8 @@ shred -u /tmp/silences_ci && rm /tmp/silences_ci.pub
    Then commit and push, and wait for CI to go green.
 5. **Make this repository public** (Settings → General → Danger zone).
 6. **Turn on Pages** (Settings → Pages → Source: GitHub Actions). Re-run the latest CI run, or push,
-   and the deploy job publishes `dist/` to `https://tessercode.github.io/silences-demo/`.
+   and the deploy job publishes `dist/` to `https://tessercode.com/silences-demo/` (the organization's
+   custom domain; `tessercode.github.io/silences-demo/` redirects there).
 7. **Remove the deploy key and the secret:**
    ```bash
    gh repo deploy-key list -R tessercode/silences      # note the key's id
