@@ -1,7 +1,4 @@
 # Test, build and check the site on every push; publish it to GitHub Pages once this repository is public.
-#
-# While tessercode/silences is private, its submodule is fetched with a read-only deploy key held in the
-# SILENCES_DEPLOY_KEY secret. Once the release is public the secret can go: the plain HTTPS fetch works.
 name: ci
 
 on:
@@ -25,21 +22,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Fetch the silences release (vendor/silences)
-        env:
-          KEY: ${{ secrets.SILENCES_DEPLOY_KEY }}
         run: |
-          if [ -n "$KEY" ]; then
-            install -m 700 -d ~/.ssh
-            printf '%s\n' "$KEY" > ~/.ssh/silences && chmod 600 ~/.ssh/silences
-            # GitHub's published host key (api.github.com/meta), so nothing is trusted on first use.
-            echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" >> ~/.ssh/known_hosts
-            git config --global url."git@github.com:tessercode/silences.git".insteadOf https://github.com/tessercode/silences.git
-            export GIT_SSH_COMMAND="ssh -i ~/.ssh/silences -o IdentitiesOnly=yes"
-          fi
-          git submodule update --init || {
-            echo "::error::Cannot fetch tessercode/silences. While it is private, add a read-only deploy key on it and its private half as this repository's SILENCES_DEPLOY_KEY secret (RELEASING.md)."
-            exit 1
-          }
+          git submodule update --init
           git -C vendor/silences log -1 --format='vendor/silences at %h %s'
 
       - uses: actions/setup-python@v5
