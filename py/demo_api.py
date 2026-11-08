@@ -3,7 +3,7 @@
     run(text, fist, seed, segmenter, weights)  ->  a JSON-ready dict
 
 The chain itself is silences.pipeline.compose, the five boards' own arithmetic. LIF and MLP are the
-committed models in the firmware's Q16.16 (FixedWindowNet), the BiGRU is the deployed five-seed
+deployed models in the firmware's Q16.16 (FixedWindowNet), the BiGRU is the deployed five-seed
 ensemble, so all three match the chain goldens bit for bit. Everything added here only observes:
 trace_lif / trace_mlp re-run one gap of a network, decode_traced is beam.decode with the beam
 recorded after each gap, and the tests check each against the untraced original.
@@ -27,7 +27,7 @@ from silences.segmenters.lif import LIF
 from silences.segmenters.mlp import MLP
 
 SEGMENTERS = ("lif", "mlp", "bigru", "oracle")
-FIT_ROWS = dict(lif="lif_committed_fx", mlp="mlp_committed_fx", bigru="bigru_deployed")
+FIT_ROWS = dict(lif="lif_op12_seed0_fx", mlp="mlp_op12_seed0_fx", bigru="bigru_deployed")   # the deployed networks (silences v1.1.0)
 DEPLOYED = dict(T=1.0, gamma=GAMMA)
 FIST_NUMBER = {name: n for n, name in CONSOLE_FIST.items()}
 DEMO_FITS = ROOT / "demo_fits.json"                 # written by tools/build_bundle.py
@@ -36,7 +36,7 @@ CLASS_NAMES = ("intra-letter", "inter-letter", "inter-word")
 
 # ---- decoder weights ----
 def extract_fits(fit_json):
-    """{text: {segmenter: {T, gamma, cer, wer}}} from records/decoder_weights/fit.json (key beta = gamma)."""
+    """{text: {segmenter: {T, gamma, cer, wer}}} from records/matched/fit.json (key beta = gamma)."""
     fits = json.loads(fit_json.read_text())["fits"]
     return {text: {seg: dict(T=fits[text][row]["T"], gamma=fits[text][row]["beta"],
                              cer=fits[text][row]["cer"], wer=fits[text][row]["wer"])
@@ -51,7 +51,7 @@ def fits():
     global _FITS
     if _FITS is None:
         _FITS = (json.loads(DEMO_FITS.read_text()) if DEMO_FITS.exists()
-                 else extract_fits(RECORDS / "decoder_weights" / "fit.json"))
+                 else extract_fits(RECORDS / "matched" / "fit.json"))
     return _FITS
 
 
@@ -77,9 +77,9 @@ _NETS = {}
 def net(segmenter):
     if segmenter not in _NETS:
         if segmenter == "lif":
-            _NETS[segmenter] = FixedWindowNet.from_lif(LIF.load(MODELS / "lif" / "committed.pkl"))
+            _NETS[segmenter] = FixedWindowNet.from_lif(LIF.load(MODELS / "lif" / "op12" / "seed0.pkl"))
         elif segmenter == "mlp":
-            _NETS[segmenter] = FixedWindowNet.from_mlp(MLP.load(MODELS / "mlp" / "committed.pkl"))
+            _NETS[segmenter] = FixedWindowNet.from_mlp(MLP.load(MODELS / "mlp" / "op12" / "seed0.pkl"))
         elif segmenter == "bigru":
             _NETS[segmenter] = bigru.deployed()
     return _NETS[segmenter]

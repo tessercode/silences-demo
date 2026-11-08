@@ -14,7 +14,7 @@ submodule (`vendor/silences`, pinned), and its Python runs unchanged in the brow
 | Path | What |
 |---|---|
 | `py/demo_api.py` | `run(text, fist, seed, segmenter, weights)`: every intermediate as JSON |
-| `tools/build_bundle.py` | packs the package, committed models, char-LM, fists and fitted decoder weights into `public/silences_bundle.tar` |
+| `tools/build_bundle.py` | packs the package, deployed models, char-LM, fists and fitted decoder weights into `public/silences_bundle.tar` |
 | `tests/` | the bridge against the release: chain goldens bit-exact for all three segmenters; traces equal the untraced code |
 | `src/about.ts` | citations and links for the footer (release day fills the DOIs; see `RELEASING.md`) |
 | `public/THIRD_PARTY_NOTICES.txt` | what the site serves under other licences |

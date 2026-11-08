@@ -81,8 +81,8 @@ def test_cer_wer_is_the_records():
 
 
 def test_fits_come_from_the_record():
-    fit = json.loads((RECORDS / "decoder_weights" / "fit.json").read_text())["fits"]
-    got = d.extract_fits(RECORDS / "decoder_weights" / "fit.json")
+    fit = json.loads((RECORDS / "matched" / "fit.json").read_text())["fits"]
+    got = d.extract_fits(RECORDS / "matched" / "fit.json")
     for text in ("eng", "rand"):
         for seg, row in d.FIT_ROWS.items():
             assert (got[text][seg]["T"], got[text][seg]["gamma"]) == (fit[text][row]["T"], fit[text][row]["beta"])

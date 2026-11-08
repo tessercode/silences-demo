@@ -9,7 +9,7 @@ export const ABOUT = {
   },
   release: {
     repo: "https://github.com/tessercode/silences",
-    doi: "10.5281/zenodo.23990295" as string | null, // the Zenodo version DOI of the release this demo pins (v1.0.1)
+    doi: "10.5281/zenodo.24057032" as string | null, // the Zenodo version DOI of the release this demo pins (v1.1.0)
   },
   tempo: {
     authors: "L. S. Hindman and K. D. Cantley",

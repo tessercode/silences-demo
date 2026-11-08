@@ -1,4 +1,4 @@
-"""Pack what the browser needs into public/silences_bundle.tar: the silences package, the committed
+"""Pack what the browser needs into public/silences_bundle.tar: the silences package, the deployed
 models, the char-LM table, the operator table, the decoder-weight fits and the bridge.
 
 Paths inside the tar mirror the release repo, so silences.ROOT resolves unchanged once it is
@@ -15,7 +15,7 @@ sys.path[:0] = [str(REPO / "py"), str(REL)]
 
 import demo_api  # noqa: E402
 
-FILES = ["models/lif/committed.pkl", "models/mlp/committed.pkl", "models/bigru/pool_q16.npz",
+FILES = ["models/lif/op12/seed0.pkl", "models/mlp/op12/seed0.pkl", "models/bigru/pool_q16.npz",
          "models/charlm_mix_q16.bin", "firmware/encoder/fists.h", "LICENSE"]
 
 
@@ -27,7 +27,7 @@ def main(out=REPO / "public" / "silences_bundle.tar"):
         for f in FILES:
             tar.add(REL / f, arcname=f)
         tar.add(REPO / "py" / "demo_api.py", arcname="demo_api.py")
-        fits = json.dumps(demo_api.extract_fits(REL / "records" / "decoder_weights" / "fit.json"), indent=1).encode()
+        fits = json.dumps(demo_api.extract_fits(REL / "records" / "matched" / "fit.json"), indent=1).encode()
         info = tarfile.TarInfo("demo_fits.json")
         info.size = len(fits)
         tar.addfile(info, io.BytesIO(fits))
