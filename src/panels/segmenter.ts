@@ -99,7 +99,7 @@ export function renderPosteriors(box: HTMLElement, r: Result, strip: GapStrip, s
     .on("mouseleave", hideTip);
 }
 
-/** LIF: both hidden layers' spikes over the T presentation steps, and the readout membranes. */
+/** LIF: both hidden layers' spikes over the T presentation steps (for the spike-fed form, the input trains first), and the readout membranes. */
 export function renderLifTrace(box: HTMLElement, r: Result) {
   const tr = r.trace;
   const T: number = tr.T;
@@ -115,6 +115,8 @@ export function renderLifTrace(box: HTMLElement, r: Result) {
   const rh = 1.25;
   const left = 70;
   const sizes: number[] = tr.sizes;
+  const names: string[] = tr.names ?? sizes.map((_, l) => `layer ${l + 1}`);
+  const units: string[] = tr.units ?? sizes.map(() => "LIF");
   const H = 32 + sizes.reduce((a, n) => a + n * rh + 26, 0); // room for the "time step" label
   const svg = svgIn(rasterBox, left + T * cw + 10, H);
   let y0 = 16;
@@ -128,14 +130,14 @@ export function renderLifTrace(box: HTMLElement, r: Result) {
       .attr("x", left - 6)
       .attr("y", y0 + 12)
       .attr("text-anchor", "end")
-      .text(`layer ${l + 1}`);
+      .text(names[l]);
     svg
       .append("text")
       .attr("class", "muted")
       .attr("x", left - 6)
       .attr("y", y0 + 26)
       .attr("text-anchor", "end")
-      .text(`${n} LIF`);
+      .text(`${n} ${units[l]}`);
     svg
       .append("text")
       .attr("class", "muted")

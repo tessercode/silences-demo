@@ -7,7 +7,8 @@ export type Result = Record<string, any>;
 
 export const CLASS_NAMES = ["intra-letter", "inter-letter", "inter-word"];
 export const SEGMENTER_NAMES: Record<string, string> = {
-  lif: "Feedforward LIF",
+  spk: "LIF fed spikes",
+  lif: "LIF fed currents",
   mlp: "tanh MLP",
   bigru: "BiGRU (5-seed)",
   oracle: "Oracle gap labels",

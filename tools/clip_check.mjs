@@ -8,11 +8,11 @@ const url = args[0] ?? "http://localhost:8080/";
 const browser = await engine.launch();
 let bad = 0;
 for (const width of [1280, 390]) {
-  for (const seg of ["lif", "mlp", "bigru", "oracle", "compare"]) {
+  for (const seg of ["spk", "lif", "mlp", "bigru", "oracle", "compare"]) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     await page.goto(url);
     await page.waitForSelector("#pipeline:not(.hidden)", { timeout: 180000 });
-    if (seg !== "lif") {
+    if (seg !== "spk") {   // the page opens on the spike-fed network
       await page.click(`#segmenter button[data-seg="${seg}"]`);
       await page.waitForTimeout(300);
       await page.waitForFunction(() => document.querySelector("#status").classList.contains("hidden"), null, { timeout: 60000 });

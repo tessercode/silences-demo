@@ -2,7 +2,7 @@
   "title": "Playing the Silences: interactive demo",
   "upload_type": "software",
   "license": "MIT",
-  "description": "Interactive browser demo of the Morse decoder from the paper Playing the Silences: A Feedforward Spiking Gap Detector for Word-Level Decoding of TEMPO Morse. A message typed by the visitor is rendered by one of the paper's synthetic operators and followed through the encoder, front end, gap segmenter (LIF, MLP or BiGRU) and beam decoder. It runs in Pyodide with the same fixed-point models and code as the paper's RP2040 chain, from the pinned silences release v1.1.0. Live at https://tessercode.com/silences-demo/.",
+  "description": "Interactive browser demo of the Morse decoder from the paper Playing the Silences: A Feedforward Spiking Gap Detector for Word-Level Decoding of TEMPO Morse. A message typed by the visitor is rendered by one of the paper's synthetic operators and followed through the encoder, front end, gap segmenter (LIF fed spikes, LIF fed currents, MLP or BiGRU) and beam decoder. It runs in Pyodide with the same fixed-point models and code as the paper's RP2040 chain, from the pinned silences release v1.2.0. Live at https://tessercode.com/silences-demo/.",
   "creators": [
     {
       "name": "Hindman, Lucas S.",
@@ -12,7 +12,7 @@
   ],
   "keywords": ["spiking neural networks", "neuromorphic computing", "Morse code", "Pyodide", "interactive demo", "TEMPO"],
   "related_identifiers": [
-    {"identifier": "10.5281/zenodo.24057032", "relation": "requires", "resource_type": "software"},
+    {"identifier": "10.5281/zenodo.24163510", "relation": "requires", "resource_type": "software"},
     {"identifier": "https://tessercode.com/silences-demo/", "relation": "isDocumentedBy", "resource_type": "other"}
   ]
 }

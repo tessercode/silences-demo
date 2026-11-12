@@ -18,7 +18,8 @@ const SAMPLES = [
   "SPIKES KEEP TIME",
   "XQ JZVK PWLB",
 ];
-const SEGMENTERS = ["lif", "mlp", "bigru", "oracle", "compare"];
+const SEGMENTERS = ["spk", "lif", "mlp", "bigru", "oracle", "compare"];
+const WINDOW_NETS = ["spk", "lif", "mlp"]; // the feedforward networks, traced one gap at a time
 
 interface Fist {
   name: string;
@@ -43,7 +44,7 @@ interface Meta {
 }
 
 const state = {
-  segmenter: "lif",
+  segmenter: "spk",
   gap: null as number | null,
   showAllBeam: false,
 };
@@ -188,7 +189,7 @@ function settings() {
       : weights === "deployed"
         ? "The one setting the RP2040 decode board uses for every segmenter."
         : "Each segmenter decodes at its own (T, γ), fitted on a calibration corpus of this text type: " +
-          ["lif", "mlp", "bigru"].map((s) => `${s.toUpperCase()} (${fits[s].T}, ${fits[s].gamma})`).join(", ") +
+          ["spk", "lif", "mlp", "bigru"].map((s) => `${SEGMENTER_NAMES[s]} (${fits[s].T}, ${fits[s].gamma})`).join(", ") +
           ". Typed text is neither of the fitted text types; the oracle always uses the deployed weights.";
   return {
     text: $<HTMLTextAreaElement>("text").value,
@@ -208,7 +209,7 @@ async function go() {
   $("status").classList.remove("hidden");
   $("status-text").textContent = "Decoding…";
   $("error").classList.add("hidden");
-  const segs = state.segmenter === "compare" ? ["lif", "mlp", "bigru", "oracle"] : [state.segmenter];
+  const segs = state.segmenter === "compare" ? ["spk", "lif", "mlp", "bigru", "oracle"] : [state.segmenter];
   const results: Result[] = [];
   for (const seg of segs) {
     const gap = state.segmenter === "compare" ? null : state.gap;
@@ -233,8 +234,8 @@ function selectedGap(r: Result): number {
 
 function select(g: number) {
   state.gap = g;
-  // LIF and MLP traces are computed for one gap, so they need a fresh run; the rest is redrawn.
-  if (last.length === 1 && (last[0].segmenter === "lif" || last[0].segmenter === "mlp")) go();
+  // The window networks' traces are computed for one gap, so they need a fresh run; the rest is redrawn.
+  if (last.length === 1 && WINDOW_NETS.includes(last[0].segmenter)) go();
   else render(last);
 }
 
@@ -262,9 +263,10 @@ function render(results: Result[]) {
   if (!compare && r.features?.kind === "window") {
     $("feat-sub").textContent = `gap ${g}: 42 inputs`;
     $("feat-explain").innerHTML =
-      "The LIF and MLP classify each gap from a window of the 10 gaps before it, the gap itself and the 10 after: the log of each " +
-      "interval in T̂u and the channel bit of the mark that ends it, standardised. The bit is what separates the two readings of a " +
-      "4 T<sub>u</sub> interval. Pick another gap in step 3 or 5 to move the window.";
+      "The LIF networks and the MLP classify each gap from a window of the 10 gaps before it, the gap itself and the 10 after: the log " +
+      "of each interval in T̂u and the channel bit of the mark that ends it, standardised. The bit is what separates the two readings " +
+      "of a 4 T<sub>u</sub> interval. The spike-fed LIF turns each value into a pair of regular spike trains (step 5). " +
+      "Pick another gap in step 3 or 5 to move the window.";
     $("h-feat").textContent = "42 standardised inputs per gap";
     renderWindow($("v-features"), r, g);
   } else if (!compare && r.features?.kind === "gap9") {
@@ -284,7 +286,7 @@ function render(results: Result[]) {
   $("trace-explain").textContent = "";
   $("v-trace").replaceChildren();
   if (compare) {
-    $("seg-sub").textContent = "all four on the same transmission";
+    $("seg-sub").textContent = "all five on the same transmission";
     $("seg-explain").innerHTML = "Each row is one segmenter's posteriors for every gap of the same transmission. Click a row in the result table to open that segmenter.";
     for (const res of results) {
       post.append(el("div", { class: "sub", style: "margin-top: 8px" }, `${SEGMENTER_NAMES[res.segmenter]} · ${res.gap_errors.length} of ${res.labels.length} gaps wrong`));
@@ -321,17 +323,26 @@ function render(results: Result[]) {
 
 function renderTrace(r: Result, strip: ReturnType<typeof gapStrip>, g: number) {
   const box = $("v-trace");
-  if (r.segmenter === "lif") {
-    $("trace-title").textContent = `Inside the LIF network at gap ${g}`;
+  if (r.segmenter === "spk") {
+    $("trace-title").textContent = `Inside the spike-fed LIF network at gap ${g}`;
     $("trace-explain").innerHTML =
-      "The 42 inputs drive the first layer as a constant current for 40 time steps. Each neuron's membrane leaks by β each step, " +
+      "The paper's network of record. Each of the 42 inputs is split into an ON channel (positive values) and an OFF channel (negative " +
+      "values), and each channel fires a regular spike train over the 40 time steps whose rate is proportional to the value, " +
+      `saturating at ${r.trace.scale} standard deviations; those 84 trains are all the first layer receives. ` +
+      "Each neuron's membrane leaks by β each step, and when it crosses the threshold the neuron spikes and the threshold is subtracted. " +
+      "Each dot below is one spike (one row per channel or neuron); the readout neurons do not spike, and the mean of their membranes is the three logits.";
+    renderLifTrace(box, r);
+  } else if (r.segmenter === "lif") {
+    $("trace-title").textContent = `Inside the current-fed LIF network at gap ${g}`;
+    $("trace-explain").innerHTML =
+      "The same network fed the 42 inputs as a constant current into the first layer for 40 time steps. Each neuron's membrane leaks by β each step, " +
       "and when it crosses the threshold the neuron spikes and the threshold is subtracted. Spikes are the only thing the layers pass on. " +
       "Each dot below is one spike (one row per neuron); the readout neurons do not spike, and the mean of their membranes is the three logits.";
     renderLifTrace(box, r);
   } else if (r.segmenter === "mlp") {
     $("trace-title").textContent = `Inside the MLP at gap ${g}`;
     $("trace-explain").innerHTML =
-      "The control network: the same inputs and layer sizes as the LIF (256 and 128 units), with tanh units in place of spiking neurons " +
+      "The control network: the same inputs and layer sizes as the LIF networks (256 and 128 units), with tanh units in place of spiking neurons " +
       "and one pass instead of 40 time steps.";
     renderMlpTrace(box, r);
   } else if (r.segmenter === "bigru") {

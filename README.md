@@ -1,7 +1,7 @@
 # silences-demo
 
 An in-browser demo of the *Playing the Silences* Morse pipeline: type text, choose an operator fist and a
-gap segmenter (feedforward LIF, tanh MLP, BiGRU, or oracle gap labels), and follow what passes between
+gap segmenter (feedforward LIF fed spikes or fed currents, tanh MLP, BiGRU, or oracle gap labels), and follow what passes between
 the encoder, front end, segmenter and beam decoder.
 
 The pipeline is not reimplemented. The [silences](https://github.com/tessercode/silences) release is a
@@ -15,7 +15,7 @@ submodule (`vendor/silences`, pinned), and its Python runs unchanged in the brow
 |---|---|
 | `py/demo_api.py` | `run(text, fist, seed, segmenter, weights)`: every intermediate as JSON |
 | `tools/build_bundle.py` | packs the package, deployed models, char-LM, fists and fitted decoder weights into `public/silences_bundle.tar` |
-| `tests/` | the bridge against the release: chain goldens bit-exact for all three segmenters; traces equal the untraced code |
+| `tests/` | the bridge against the release: chain goldens bit-exact for all four segmenters; traces equal the untraced code |
 | `src/about.ts` | citations and links for the footer (release day fills the DOIs; see `RELEASING.md`) |
 | `public/THIRD_PARTY_NOTICES.txt` | what the site serves under other licences |
 | `tools/pyodide_parity.mjs` | re-runs 100 cases in Pyodide (Node) and compares them with CPython |

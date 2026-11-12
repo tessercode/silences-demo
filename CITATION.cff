@@ -29,6 +29,6 @@ references:
     authors:
       - family-names: Hindman
         given-names: Lucas S.
-    version: "v1.1.0"
-    doi: "10.5281/zenodo.24057032"
+    version: "v1.2.0"
+    doi: "10.5281/zenodo.24163510"
     repository-code: "https://github.com/tessercode/silences"

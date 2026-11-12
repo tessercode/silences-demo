@@ -2,11 +2,12 @@
 
     run(text, fist, seed, segmenter, weights)  ->  a JSON-ready dict
 
-The chain itself is silences.pipeline.compose, the five boards' own arithmetic. LIF and MLP are the
-deployed models in the firmware's Q16.16 (FixedWindowNet), the BiGRU is the deployed five-seed
-ensemble, so all three match the chain goldens bit for bit. Everything added here only observes:
-trace_lif / trace_mlp re-run one gap of a network, decode_traced is beam.decode with the beam
-recorded after each gap, and the tests check each against the untraced original.
+The chain itself is silences.pipeline.compose, the five boards' own arithmetic. The two LIF forms
+(fed spikes, the network of record since silences v1.2.0; fed currents) and the MLP are the deployed
+models in the firmware's Q16.16 (FixedWindowNet), the BiGRU is the deployed five-seed ensemble, so
+all four match the chain goldens bit for bit. Everything added here only observes: trace_lif /
+trace_mlp re-run one gap of a network, decode_traced is beam.decode with the beam recorded after
+each gap, and the tests check each against the untraced original.
 """
 import json
 import time
@@ -23,11 +24,16 @@ from silences.morse import MORSE_TABLE
 from silences.operators import OPERATORS
 from silences.pipeline import CONSOLE_FIST, compose
 from silences.segmenters import bigru, oracle
-from silences.segmenters.lif import LIF
+from silences.segmenters.lif import LIF, SpikeFedLIF
 from silences.segmenters.mlp import MLP
 
-SEGMENTERS = ("lif", "mlp", "bigru", "oracle")
-FIT_ROWS = dict(lif="lif_op12_seed0_fx", mlp="mlp_op12_seed0_fx", bigru="bigru_deployed")   # the deployed networks (silences v1.1.0)
+SEGMENTERS = ("spk", "lif", "mlp", "bigru", "oracle")
+WINDOW_NETS = ("spk", "lif", "mlp")                 # the feedforward networks: a window of gaps in, one gap's class out
+# The deployed networks' fitted decoder weights: (record, row) in records/<record>/fit.json (silences v1.2.0).
+# The spike-fed network's fit is its float row's; the record evaluates the fixed-point network at those
+# weights (records/spike_fed/fidelity.json, "float_fit/fx"), as the port gate did.
+FIT_ROWS = dict(spk=("spike_fed", "spk40_op12_seed0"), lif=("matched", "lif_op12_seed0_fx"),
+                mlp=("matched", "mlp_op12_seed0_fx"), bigru=("matched", "bigru_deployed"))
 DEPLOYED = dict(T=1.0, gamma=GAMMA)
 FIST_NUMBER = {name: n for n, name in CONSOLE_FIST.items()}
 DEMO_FITS = ROOT / "demo_fits.json"                 # written by tools/build_bundle.py
@@ -35,13 +41,15 @@ CLASS_NAMES = ("intra-letter", "inter-letter", "inter-word")
 
 
 # ---- decoder weights ----
-def extract_fits(fit_json):
-    """{text: {segmenter: {T, gamma, cer, wer}}} from records/matched/fit.json (key beta = gamma)."""
-    fits = json.loads(fit_json.read_text())["fits"]
-    return {text: {seg: dict(T=fits[text][row]["T"], gamma=fits[text][row]["beta"],
-                             cer=fits[text][row]["cer"], wer=fits[text][row]["wer"])
-                   for seg, row in FIT_ROWS.items()}
-            for text in fits}
+def extract_fits(records=RECORDS):
+    """{text: {segmenter: {T, gamma, cer, wer}}} from records/<record>/fit.json (key beta = gamma)."""
+    fits = {rec: json.loads((records / rec / "fit.json").read_text())["fits"] for rec in {r for r, _ in FIT_ROWS.values()}}
+    texts = sorted(fits["matched"])
+    assert all(sorted(f) == texts for f in fits.values())
+    return {text: {seg: dict(T=fits[rec][text][row]["T"], gamma=fits[rec][text][row]["beta"],
+                             cer=fits[rec][text][row]["cer"], wer=fits[rec][text][row]["wer"])
+                   for seg, (rec, row) in FIT_ROWS.items()}
+            for text in texts}
 
 
 _FITS = None
@@ -50,8 +58,7 @@ _FITS = None
 def fits():
     global _FITS
     if _FITS is None:
-        _FITS = (json.loads(DEMO_FITS.read_text()) if DEMO_FITS.exists()
-                 else extract_fits(RECORDS / "matched" / "fit.json"))
+        _FITS = json.loads(DEMO_FITS.read_text()) if DEMO_FITS.exists() else extract_fits()
     return _FITS
 
 
@@ -76,7 +83,9 @@ _NETS = {}
 
 def net(segmenter):
     if segmenter not in _NETS:
-        if segmenter == "lif":
+        if segmenter == "spk":
+            _NETS[segmenter] = FixedWindowNet.from_spk(SpikeFedLIF.load(MODELS / "spk40" / "op12" / "seed0.pkl"))
+        elif segmenter == "lif":
             _NETS[segmenter] = FixedWindowNet.from_lif(LIF.load(MODELS / "lif" / "op12" / "seed0.pkl"))
         elif segmenter == "mlp":
             _NETS[segmenter] = FixedWindowNet.from_mlp(MLP.load(MODELS / "mlp" / "op12" / "seed0.pkl"))
@@ -87,7 +96,7 @@ def net(segmenter):
 
 def producer(segmenter, labels):
     """The segmenter as compose() calls it: (ticks, ch, tu_us) -> lp3 rows."""
-    if segmenter in ("lif", "mlp"):
+    if segmenter in WINDOW_NETS:
         return net(segmenter).lp3_ticks
     if segmenter == "bigru":
         seeds = net("bigru")
@@ -97,16 +106,24 @@ def producer(segmenter, labels):
 
 # ---- traces (observe only) ----
 def trace_lif(fnet, feat_q, g):
-    """FixedWindowNet.logits for gap g, recording each hidden layer's spikes and the readout membrane."""
-    I0 = fnet._matvec(feat_q[g:g + 1], *fnet.layers_q[0], shift=True)
+    """FixedWindowNet.logits for gap g, recording each hidden layer's spikes and the readout membrane.
+    For the spike-fed network ('spk') the input spike trains are recorded first, as a layer of their own."""
+    spk_in = fnet.kind == "spk"
+    if spk_in:
+        S_in = fnet.encode_q(feat_q[g:g + 1])                          # (T, 1, 84) regular ON/OFF trains
+    else:
+        I0 = fnet._matvec(feat_q[g:g + 1], *fnet.layers_q[0], shift=True)
     mem = [np.zeros((1, Wt.shape[1]), np.int64) for Wt, _ in fnet.layers_q]
     out = np.zeros((1, 3), np.int64)
     spikes = [[] for _ in fnet.layers_q[:-1]]        # per layer, per step: indices of the neurons that fired
     readout = []
-    for _ in range(fnet.T):
+    for t in range(fnet.T):
         cur = None
         for i, (Wt, b) in enumerate(fnet.layers_q):
-            I = I0 if i == 0 else fnet._matvec(cur, Wt, b, shift=False)
+            if i == 0:
+                I = fnet._matvec(S_in[t], Wt, b, shift=False) if spk_in else I0
+            else:
+                I = fnet._matvec(cur, Wt, b, shift=False)
             m = q16.fxmul_round(fnet.beta_q, mem[i]) + I
             if i < len(fnet.layers_q) - 1:
                 spk = (m >= fnet.theta_q).astype(np.int64)
@@ -117,9 +134,15 @@ def trace_lif(fnet, feat_q, g):
                 mem[i] = m
                 out += m
                 readout.append([v / ONE for v in m[0].tolist()])
-    return dict(logits_q=(out // fnet.T)[0].tolist(), spikes=spikes, readout=readout,
-                sizes=[Wt.shape[1] for Wt, _ in fnet.layers_q[:-1]], T=fnet.T,
-                threshold=fnet.theta_q / ONE, beta=fnet.beta_q / ONE)
+    layers = dict(spikes=spikes, sizes=[Wt.shape[1] for Wt, _ in fnet.layers_q[:-1]],
+                  names=[f"layer {i + 1}" for i in range(len(spikes))], units=["LIF"] * len(spikes))
+    if spk_in:
+        # the input trains first: 42 ON channels then 42 OFF channels, one regular train per channel
+        layers = dict(spikes=[[np.flatnonzero(S_in[t, 0]).tolist() for t in range(fnet.T)]] + spikes,
+                      sizes=[S_in.shape[2]] + layers["sizes"], names=["input"] + layers["names"],
+                      units=["channels"] + layers["units"], scale=fnet.scale_q / ONE)
+    return dict(logits_q=(out // fnet.T)[0].tolist(), readout=readout, T=fnet.T,
+                threshold=fnet.theta_q / ONE, beta=fnet.beta_q / ONE, **layers)
 
 
 def trace_mlp(fnet, feat_q, g):
@@ -267,11 +290,11 @@ def run(text, fist="cootie_corrected", seed=1, segmenter="lif", weights="eng", T
     tg = gap if gap is not None else (errs[0] if errs else 0)
     ticks_c, tu = [m[0] for m in c["marks"]], c["tu_us"]
     out["interval_tu"] = (np.diff(ticks_c) / tu).round(4).tolist()
-    if segmenter in ("lif", "mlp"):
+    if segmenter in WINDOW_NETS:
         fnet = net(segmenter)
         feat_q = fnet.features_q(ticks_c, m_ch, tu)
         out["features"] = dict(kind="window", W=fnet.W, standardized=(feat_q / ONE).round(3).tolist())
-        tr = trace_lif(fnet, feat_q, tg) if segmenter == "lif" else trace_mlp(fnet, feat_q, tg)
+        tr = trace_mlp(fnet, feat_q, tg) if segmenter == "mlp" else trace_lif(fnet, feat_q, tg)
         out["trace"] = dict(tr, gap=tg, kind=segmenter)
     elif segmenter == "bigru":
         feats = bigru.features_q(ticks_c, m_ch, tu)

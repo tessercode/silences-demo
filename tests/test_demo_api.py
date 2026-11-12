@@ -13,14 +13,16 @@ from silences.morse import MORSE_TABLE
 from silences.pipeline import CONSOLE_FIST
 
 GOLDEN = FIRMWARE / "golden"
-CHAINS = dict(lif="chain_lif.json", mlp="chain_mlp.json", bigru="chain_bigru_n5.json")
+CHAINS = dict(spk="chain_spk.json", lif="chain_lif.json", mlp="chain_mlp.json", bigru="chain_bigru_n5.json")
 
 
 def _golden_decode(g):
+    """(text, seg, score); a dead beam (chain_spk vector 58 at the deployed weights) is (None, None, None)
+    in the bridge and (None, [], None) in the golden."""
     e = g["expected_decode"]
     if isinstance(e, dict):
         return e["text"], e["seg"], e["final_score_q16"]
-    return e, g["expected_seg"], g["expected_score"]
+    return e, (g["expected_seg"] if e is not None else None), g["expected_score"]
 
 
 @pytest.mark.parametrize("segmenter", CHAINS)
@@ -57,11 +59,11 @@ def test_decode_traced_is_decode(segmenter):
         assert (o["decoded_text"], o["seg"], o["final_score_q16"]) == expect, text
 
 
-@pytest.mark.parametrize("segmenter", ("lif", "mlp"))
+@pytest.mark.parametrize("segmenter", d.WINDOW_NETS)
 def test_network_traces_are_the_network(segmenter):
     """The traced forward pass of a gap gives the same logits as FixedWindowNet.logits."""
     fnet = d.net(segmenter)
-    trace = d.trace_lif if segmenter == "lif" else d.trace_mlp
+    trace = d.trace_mlp if segmenter == "mlp" else d.trace_lif
     for i, text in enumerate(_sentences(10, seed=2)):
         o = d.run(text, "cootie_corrected", i, segmenter, "deployed")
         if o.get("error"):
@@ -81,11 +83,29 @@ def test_cer_wer_is_the_records():
 
 
 def test_fits_come_from_the_record():
-    fit = json.loads((RECORDS / "matched" / "fit.json").read_text())["fits"]
-    got = d.extract_fits(RECORDS / "matched" / "fit.json")
+    got = d.extract_fits(RECORDS)
     for text in ("eng", "rand"):
-        for seg, row in d.FIT_ROWS.items():
+        for seg, (rec, row) in d.FIT_ROWS.items():
+            fit = json.loads((RECORDS / rec / "fit.json").read_text())["fits"]
             assert (got[text][seg]["T"], got[text][seg]["gamma"]) == (fit[text][row]["T"], fit[text][row]["beta"])
+
+
+def test_spike_fed_trace_records_the_input_trains():
+    """The traced input layer is FixedWindowNet.encode_q: 84 regular ON/OFF trains, each channel's count
+    over T steps equal to floor(T * clipped value / scale), and the hidden layers follow."""
+    fnet = d.net("spk")
+    o = d.run("CQ CQ DE W1AW", "cootie_high_jitter", 5, "spk", "eng")
+    ticks, ch = [m[0] for m in o["marks"]], [m[1] for m in o["marks"]]
+    feat_q = fnet.features_q(ticks, ch, o["tu_us"])
+    tr = o["trace"]
+    assert tr["names"] == ["input", "layer 1", "layer 2"] and tr["sizes"] == [84, 256, 128]
+    S = fnet.encode_q(feat_q[tr["gap"]:tr["gap"] + 1])
+    for t in range(fnet.T):
+        assert tr["spikes"][0][t] == np.flatnonzero(S[t, 0]).tolist()
+    counts = S[:, 0].sum(axis=0)
+    z = np.asarray(feat_q[tr["gap"]], np.int64)
+    zc = np.concatenate([np.clip(z, 0, fnet.scale_q), np.clip(-z, 0, fnet.scale_q)])
+    assert counts.tolist() == ((fnet.T * zc) // fnet.scale_q).tolist()
 
 
 def test_labels_and_truth():
@@ -121,4 +141,4 @@ def test_the_page_cap_never_overflows(fist):
         o = d.run(text, fist, 1, seg)
         assert "error" not in o and o["n_captures"] == 1 and o["last_mark"] + 1 == d.count_marks(text)
     over = text + " " + "E" * (d.frames.N_MARKS_MAX + 1 - d.count_marks(text))
-    assert "error" in d.run(over, fist, 1, "lif")
+    assert "error" in d.run(over, fist, 1, "spk")

@@ -30,7 +30,7 @@ def cases(n=100):
     for i in range(n):
         text = " ".join("".join(rng.choice(letters, rng.integers(2, 7))) for _ in range(rng.integers(1, 9)))
         out.append(dict(text=text, fist=fists[i % 5], seed=int(rng.integers(1, 10_000)),
-                        segmenter=d.SEGMENTERS[i % 4], weights=("eng", "rand", "deployed")[i % 3]))
+                        segmenter=d.SEGMENTERS[i % len(d.SEGMENTERS)], weights=("eng", "rand", "deployed")[i % 3]))
     return out
 
 

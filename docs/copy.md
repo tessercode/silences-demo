@@ -35,9 +35,9 @@ Status: **not yet reviewed** (2026-10-30).
 > (T = 1, γ = 2.5) · Custom
 
 **C8** (main.ts `settings`, weights note, fitted)
-> Each segmenter decodes at its own (T, γ), fitted on a calibration corpus of this text type: LIF
-> (1.5, 4), MLP (1.5, 4), BIGRU (1.5, 2). Typed text is neither of the fitted text types; the oracle
-> always uses the deployed weights.
+> Each segmenter decodes at its own (T, γ), fitted on a calibration corpus of this text type: LIF fed
+> spikes (2, 4), LIF fed currents (2, 4), tanh MLP (2, 4), BiGRU (5-seed) (1.5, 2). Typed text is
+> neither of the fitted text types; the oracle always uses the deployed weights.
 
 **C9** (main.ts, weights note, deployed)
 > The one setting the RP2040 decode board uses for every segmenter.
@@ -79,11 +79,12 @@ Status: **not yet reviewed** (2026-10-30).
 
 ## 4 What the segmenter reads
 
-**C16** (main.ts, LIF and MLP)
-> The LIF and MLP classify each gap from a window of the 10 gaps before it, the gap itself and the 10
-> after: the log of each interval in T̂u and the channel bit of the mark that ends it, standardised.
-> The bit is what separates the two readings of a 4 T_u interval. Pick another gap in step 3 or 5 to
-> move the window.
+**C16** (main.ts, LIF networks and MLP)
+> The LIF networks and the MLP classify each gap from a window of the 10 gaps before it, the gap itself
+> and the 10 after: the log of each interval in T̂u and the channel bit of the mark that ends it,
+> standardised. The bit is what separates the two readings of a 4 T_u interval. The spike-fed LIF turns
+> each value into a pair of regular spike trains (step 5). Pick another gap in step 3 or 5 to move the
+> window.
 
 **C17** (main.ts, BiGRU)
 > The BiGRU reads nine features per gap: six decaying traces of the interval (a population of leaky
@@ -107,17 +108,27 @@ Status: **not yet reviewed** (2026-10-30).
 > Each row is one segmenter's posteriors for every gap of the same transmission. Click a row in the
 > result table to open that segmenter.
 
-**C22** (main.ts `renderTrace`, LIF)
-> The 42 inputs drive the first layer as a constant current for 40 time steps. Each neuron's membrane
-> leaks by β each step, and when it crosses the threshold the neuron spikes and the threshold is
-> subtracted. Spikes are the only thing the layers pass on. Each dot below is one spike (one row per
-> neuron); the readout neurons do not spike, and the mean of their membranes is the three logits.
+**C22a** (main.ts `renderTrace`, LIF fed spikes; added 2026-11-12 with silences v1.2.0)
+> The paper's network of record. Each of the 42 inputs is split into an ON channel (positive values)
+> and an OFF channel (negative values), and each channel fires a regular spike train over the 40 time
+> steps whose rate is proportional to the value, saturating at 3 standard deviations; those 84 trains
+> are all the first layer receives. Each neuron's membrane leaks by β each step, and when it crosses
+> the threshold the neuron spikes and the threshold is subtracted. Each dot below is one spike (one
+> row per channel or neuron); the readout neurons do not spike, and the mean of their membranes is the
+> three logits.
+
+**C22** (main.ts `renderTrace`, LIF fed currents)
+> The same network fed the 42 inputs as a constant current into the first layer for 40 time steps.
+> Each neuron's membrane leaks by β each step, and when it crosses the threshold the neuron spikes and
+> the threshold is subtracted. Spikes are the only thing the layers pass on. Each dot below is one
+> spike (one row per neuron); the readout neurons do not spike, and the mean of their membranes is the
+> three logits.
 
 **C23** (segmenter.ts, under the readout plot)
 > dashed: mean over the steps = the class logit · β = 0.95, threshold 1, subtractive reset, T = 40
 
 **C24** (main.ts, MLP)
-> The control network: the same inputs and layer sizes as the LIF (256 and 128 units), with tanh units
+> The control network: the same inputs and layer sizes as the LIF networks (256 and 128 units), with tanh units
 > in place of spiking neurons and one pass instead of 40 time steps.
 
 **C25** (main.ts, BiGRU)
