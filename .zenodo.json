@@ -12,7 +12,7 @@
   ],
   "keywords": ["spiking neural networks", "neuromorphic computing", "Morse code", "Pyodide", "interactive demo", "TEMPO"],
   "related_identifiers": [
-    {"identifier": "10.5281/zenodo.24163510", "relation": "requires", "resource_type": "software"},
+    {"identifier": "10.5281/zenodo.24431390", "relation": "requires", "resource_type": "software"},
     {"identifier": "https://tessercode.com/silences-demo/", "relation": "isDocumentedBy", "resource_type": "other"}
   ]
 }
